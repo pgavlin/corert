@@ -130,6 +130,14 @@ namespace ILCompiler.DependencyAnalysis
             objData.Alignment = 16;
             objData.DefinedSymbols.Add(this);
 
+            // Todo: Generic Type Definition EETypes
+            //       Early-out just to prevent crashing at compile time...
+            if (_type.HasInstantiation && _type.IsTypeDefinition)
+            {
+                objData.EmitZeroPointer();
+                return objData.ToObjectData();
+            }
+            
             ComputeOptionalEETypeFields(factory);
             if (null == _optionalFieldsNode)
             {
@@ -229,29 +237,6 @@ namespace ILCompiler.DependencyAnalysis
             }
 
             objData.EmitShort((short)flags);
-        }
-
-        private static bool ComputeRequiresAlign8(TypeDesc type)
-        {
-            if (type.Context.Target.Architecture != TargetArchitecture.ARM)
-            {
-                return false;
-            }
-
-            if (type.IsArray)
-            {
-                var elementType = ((ArrayType)type).ElementType;
-                if ((elementType.IsValueType) && ((DefType)elementType).InstanceByteAlignment > 4)
-                {
-                    return true;
-                }
-            }
-            else if (type is DefType && ((DefType)type).InstanceByteAlignment > 4)
-            {
-                return true;
-            }
-
-            return false;
         }
 
         private void OutputBaseSize(ref ObjectDataBuilder objData)
@@ -432,7 +417,7 @@ namespace ILCompiler.DependencyAnalysis
                 flags |= (uint)EETypeRareFlags.HasCctorFlag;
             }
             
-            if (ComputeRequiresAlign8(_type))
+            if (EETypeBuilderHelpers.ComputeRequiresAlign8(_type))
             {
                 flags |= (uint)EETypeRareFlags.RequiresAlign8Flag;
             }

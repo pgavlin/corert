@@ -611,7 +611,7 @@ namespace Internal.IL
 
             AddTypeReference(type, false);
 
-            Append(opcode == ILOpcode.isinst ? "__isinst_class" : "__castclass_class");
+            Append(opcode == ILOpcode.isinst ? "__isinst" : "__castclass");
             Append("(");
             Append(value.Value.Name);
             Append(", ");
@@ -1496,6 +1496,9 @@ namespace Internal.IL
                 Append(thisPtr.Value.Name);
                 Append(")->");
                 Append(_writer.GetCppFieldName(field));
+
+                // TODO: Remove
+                _writer.GetCppSignatureTypeName(owningType);
             }
 
             Finish();
@@ -1547,6 +1550,9 @@ namespace Internal.IL
                 Append(thisPtr.Value.Name);
                 Append(")->");
                 Append(_writer.GetCppFieldName(field));
+
+                // TODO: Remove
+                _writer.GetCppSignatureTypeName(owningType);
             }
 
             Finish();
@@ -1595,6 +1601,9 @@ namespace Internal.IL
                 Append(thisPtr.Value.Name);
                 Append(")->");
                 Append(_writer.GetCppFieldName(field));
+
+                // TODO: Remove
+                _writer.GetCppSignatureTypeName(owningType);
             }
             Append("=");
             if (!fieldType.IsValueType)
