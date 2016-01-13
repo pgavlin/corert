@@ -392,7 +392,7 @@ while [ "$1" != "" ]; do
         -milestone) 
             shift
             __ToolchainMilestone=$1
-        ;;
+            ;;
         *)
           __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
     esac
