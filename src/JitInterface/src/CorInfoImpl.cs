@@ -537,9 +537,8 @@ namespace Internal.JitInterface
             // if (pMD->IsSharedByGenericInstantiations())
             //     result |= CORINFO_FLG_SHAREDINST;
 
-            // TODO: PInvoke
-            // if ((attribs & MethodAttributes.PinvokeImpl) != 0)
-            //    result |= CorInfoFlag.CORINFO_FLG_PINVOKE;
+            if (method.IsPInvoke)
+               result |= CorInfoFlag.CORINFO_FLG_PINVOKE;
 
             // TODO: Cache inlining hits
             // Check for an inlining directive.
@@ -644,10 +643,37 @@ namespace Internal.JitInterface
         }
 
         private CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_STRUCT_* method)
-        { throw new NotImplementedException("getUnmanagedCallConv"); }
+        {
+            PInvokeAttributes callingConv =
+                HandleToObject(method).GetPInvokeMethodMetadata().Attributes & PInvokeAttributes.CallingConventionMask;
+
+            if (_compilation.Options.TargetArchitecture == TargetArchitecture.X86)
+            {
+                switch (callingConv)
+                {
+                    case PInvokeAttributes.CallingConventionCDecl:
+                        return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_C;
+
+                    case PInvokeAttributes.CallingConventionStdCall:
+                        return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_STDCALL;
+
+                    case PInvokeAttributes.CallingConventionThisCall:
+                        return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_THISCALL;
+                }
+
+                return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_UNKNOWN;
+            }
+
+            // All other platforms have a single calling convention.
+            return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_STDCALL;
+        }
+
         [return: MarshalAs(UnmanagedType.Bool)]
         private bool pInvokeMarshalingRequired(CORINFO_METHOD_STRUCT_* method, CORINFO_SIG_INFO* callSiteSig)
-        { throw new NotImplementedException("pInvokeMarshalingRequired"); }
+        {
+            return Internal.IL.Stubs.PInvokeMarshallingILEmitter.RequiresMarshalling(HandleToObject(method));
+        }
+
         [return: MarshalAs(UnmanagedType.Bool)]
         private bool satisfiesMethodConstraints(CORINFO_CLASS_STRUCT_* parent, CORINFO_METHOD_STRUCT_* method)
         { throw new NotImplementedException("satisfiesMethodConstraints"); }
@@ -1646,6 +1672,27 @@ namespace Internal.JitInterface
         private void ThrowExceptionForHelper(ref CORINFO_HELPER_DESC throwHelper)
         { throw new NotImplementedException("ThrowExceptionForHelper"); }
 
+        private uint SizeOfPInvokeTransitionFrame
+        {
+            get
+            {
+                uint baseSize = (uint)(this.PointerSize * 3 + 4);
+                uint addend = 0;
+                switch (_compilation.Options.TargetArchitecture)
+                {
+                    case TargetArchitecture.ARM:
+                        addend = (uint)this.PointerSize;
+                        break;
+
+                    case TargetArchitecture.X64:
+                        addend = 4;
+                        break;
+                }
+
+                return baseSize + addend;
+            }
+        }
+
         private void getEEInfo(ref CORINFO_EE_INFO pEEInfoOut)
         {
             pEEInfoOut = new CORINFO_EE_INFO();
@@ -1658,6 +1705,8 @@ namespace Internal.JitInterface
 #endif
 
             int pointerSize = this.PointerSize;
+
+            pEEInfoOut.inlinedCallFrameInfo.size = this.SizeOfPInvokeTransitionFrame;
 
             pEEInfoOut.offsetOfDelegateInstance = (uint)pointerSize;            // Delegate::m_firstParameter
             pEEInfoOut.offsetOfDelegateFirstTarget = (uint)(4 * pointerSize);   // Delegate::m_functionPointer
@@ -1807,6 +1856,10 @@ namespace Internal.JitInterface
                 case CorInfoHelpFunc.CORINFO_HELP_FLTROUND: id = JitHelperId.FltRound; break;
                 case CorInfoHelpFunc.CORINFO_HELP_DBLROUND: id = JitHelperId.DblRound; break;
 
+                case CorInfoHelpFunc.CORINFO_HELP_INIT_PINVOKE_FRAME: id = JitHelperId.InitPInvokeFrame; break;
+                case CorInfoHelpFunc.CORINFO_HELP_JIT_PINVOKE_BEGIN: id = JitHelperId.PInvokeBegin; break;
+                case CorInfoHelpFunc.CORINFO_HELP_JIT_PINVOKE_END: id = JitHelperId.PInvokeEnd; break;
+
                 default:
                     throw new NotImplementedException(ftnNum.ToString());
             }
@@ -1919,8 +1972,17 @@ namespace Internal.JitInterface
         { throw new NotImplementedException("getPInvokeUnmanagedTarget"); }
         private void* getAddressOfPInvokeFixup(CORINFO_METHOD_STRUCT_* method, ref void* ppIndirection)
         { throw new NotImplementedException("getAddressOfPInvokeFixup"); }
+
         private void getAddressOfPInvokeTarget(CORINFO_METHOD_STRUCT_* method, ref CORINFO_CONST_LOOKUP pLookup)
-        { throw new NotImplementedException("getAddressOfPInvokeTarget"); }
+        {
+            MethodDesc targetMethod = HandleToObject(method);
+
+            Debug.Assert(targetMethod.IsPInvoke);
+
+            pLookup.accessType = InfoAccessType.IAT_VALUE;
+            pLookup.addr = (void*)ObjectToHandle(_compilation.NodeFactory.MethodEntrypoint(targetMethod));
+        }
+
         private void* GetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, ref void* ppIndirection)
         { throw new NotImplementedException("GetCookieForPInvokeCalliSig"); }
         [return: MarshalAs(UnmanagedType.I1)]
@@ -2435,7 +2497,7 @@ namespace Internal.JitInterface
                 flags.corJitFlags |= CorJitFlag.CORJIT_FLG_CFI_UNWIND;
             }
 
-            flags.corJitFlags2 = 0;
+            flags.corJitFlags2 = CorJitFlag2.CORJIT_FLG2_USE_PINVOKE_HELPERS;
 
             return (uint)sizeof(CORJIT_FLAGS);
         }

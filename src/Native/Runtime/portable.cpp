@@ -58,6 +58,21 @@ struct alloc_context
 //
 // PInvoke
 //
+COOP_PINVOKE_HELPER(void, RhpInitPInvokeFrame, (PInvokeTransitionFrame* pFrame))
+{
+    // No-op for now
+}
+
+COOP_PINVOKE_HELPER(void, RhpPInvokeBegin, (PInvokeTransitionFrame* pFrame))
+{
+    // No-op for now
+}
+
+COOP_PINVOKE_HELPER(void, RhpPInvokeEnd, (PInvokeTransitionFrame* pFrame))
+{
+    // No-op for now
+}
+
 COOP_PINVOKE_HELPER(void, RhpReversePInvoke2, (ReversePInvokeFrame* pFrame))
 {
     Thread* pCurThread = ThreadStore::RawGetCurrentThread();
