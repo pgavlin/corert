@@ -1438,6 +1438,25 @@ namespace Internal.JitInterface
         private void ThrowExceptionForHelper(ref CORINFO_HELPER_DESC throwHelper)
         { throw new NotImplementedException("ThrowExceptionForHelper"); }
 
+        private uint SizeOfPInvokeTransitionFrame
+        {
+            get
+            {
+                const uint BaseSize = this.PointerSize * 3 + 4;
+                switch (_compilation.TargetArchitecture)
+                {
+                    case TargetArchitecture.ARM:
+                        return (uint)(this.PointerSize + BaseSize);
+
+                    case TargetArchitecture.X64:
+                        return (uint)(this.BaseSize + 4);
+
+                    default:
+                        return this.BaseSize;
+                }
+            }
+        }
+
         private void getEEInfo(ref CORINFO_EE_INFO pEEInfoOut)
         {
             pEEInfoOut = new CORINFO_EE_INFO();
@@ -1450,6 +1469,8 @@ namespace Internal.JitInterface
 #endif
 
             int pointerSize = this.PointerSize;
+
+            pEEInfoOut.inlinedCallFrameInfo.size = this.SizeOfPInvokeTransitionFrame;
 
             pEEInfoOut.offsetOfDelegateInstance = (uint)pointerSize;            // Delegate::m_firstParameter
             pEEInfoOut.offsetOfDelegateFirstTarget = (uint)(4 * pointerSize);   // Delegate::m_functionPointer
