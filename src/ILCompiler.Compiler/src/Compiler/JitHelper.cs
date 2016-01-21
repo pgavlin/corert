@@ -90,6 +90,11 @@ namespace ILCompiler
         FltRem                      = 0xE1,
         DblRound                    = 0xE2,
         FltRound                    = 0xE3,
+
+        // P/Invoke support
+        InitPInvokeFrame            = 0xF0,
+        PInvokeBegin                = 0xF1,
+        PInvokeEnd                  = 0xF2,
     }
 
     internal class JitHelper
@@ -181,6 +186,16 @@ namespace ILCompiler
                     break;
                 case JitHelperId.Dbl2ULngOvf:
                     methodDesc = context.GetHelperEntryPoint("MathHelpers", "Dbl2ULngOvf");
+                    break;
+
+                case JitHelperId.InitPInvokeFrame:
+                    mangledName = "RhpInitPInvokeFrame";
+                    break;
+                case JitHelperId.PInvokeBegin:
+                    mangledName = "RhpPInvokeBegin";
+                    break;
+                case JitHelperId.PInvokeEnd:
+                    mangledname = "RhpPInvokeEnd";
                     break;
 
                 default:

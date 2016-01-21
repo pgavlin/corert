@@ -97,7 +97,8 @@ namespace Internal.JitInterface
                     CorJitFlag.CORJIT_FLG_READYTORUN |
                     CorJitFlag.CORJIT_FLG_RELOC |
                     CorJitFlag.CORJIT_FLG_DEBUG_INFO |
-                    CorJitFlag.CORJIT_FLG_PREJIT);
+                    CorJitFlag.CORJIT_FLG_PREJIT |
+                    CorJitFlag.CORJIT_FLG_USE_PINVOKE_HELPERS);
 
                 if (!_compilation.Options.NoLineNumbers)
                 {
@@ -440,9 +441,8 @@ namespace Internal.JitInterface
             // if (pMD->IsSharedByGenericInstantiations())
             //     result |= CORINFO_FLG_SHAREDINST;
 
-            // TODO: PInvoke
-            // if ((attribs & MethodAttributes.PinvokeImpl) != 0)
-            //    result |= CorInfoFlag.CORINFO_FLG_PINVOKE;
+            if ((attribs & MethodAttributes.PinvokeImpl) != 0)
+               result |= CorInfoFlag.CORINFO_FLG_PINVOKE;
 
             // TODO: Cache inlining hits
             // Check for an inlining directive.
@@ -1604,6 +1604,10 @@ namespace Internal.JitInterface
                 case CorInfoHelpFunc.CORINFO_HELP_DBLREM: id = JitHelperId.FltRem; break;
                 case CorInfoHelpFunc.CORINFO_HELP_FLTROUND: id = JitHelperId.DblRound; break;
                 case CorInfoHelpFunc.CORINFO_HELP_DBLROUND: id = JitHelperId.FltRound; break;
+
+                case CorInfoHelpFunc.CORINFO_HELP_INIT_PINVOKE_FRAME: id = JitHelperId.InitPInvokeFrame; break;
+                case CorInfoHelpFunc.CORINFO_HELP_JIT_PINVOKE_BEGIN: id = JitHelperId.PInvokeBegin; break;
+                case CorInfoHelpFunc.CORINFO_HELP_JIT_PINVOKE_END: id = JitHelperId.PInvokeEnd; break;
 
                 default:
                     throw new NotImplementedException(ftnNum.ToString());
