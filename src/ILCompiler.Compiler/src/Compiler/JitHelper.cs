@@ -195,7 +195,7 @@ namespace ILCompiler
                     mangledName = "RhpPInvokeBegin";
                     break;
                 case JitHelperId.PInvokeEnd:
-                    mangledname = "RhpPInvokeEnd";
+                    mangledName = "RhpPInvokeEnd";
                     break;
 
                 default:

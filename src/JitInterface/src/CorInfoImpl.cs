@@ -98,7 +98,8 @@ namespace Internal.JitInterface
                     CorJitFlag.CORJIT_FLG_RELOC |
                     CorJitFlag.CORJIT_FLG_DEBUG_INFO |
                     CorJitFlag.CORJIT_FLG_PREJIT |
-                    CorJitFlag.CORJIT_FLG_USE_PINVOKE_HELPERS);
+                    CorJitFlag.CORJIT_FLG_PINVOKE_DIRECT_CALLS |
+                    CorJitFlag.CORJIT_FLG_PINVOKE_USE_HELPERS);
 
                 if (!_compilation.Options.NoLineNumbers)
                 {
@@ -441,7 +442,7 @@ namespace Internal.JitInterface
             // if (pMD->IsSharedByGenericInstantiations())
             //     result |= CORINFO_FLG_SHAREDINST;
 
-            if ((attribs & MethodAttributes.PinvokeImpl) != 0)
+            if (method.IsPInvoke)
                result |= CorInfoFlag.CORINFO_FLG_PINVOKE;
 
             // TODO: Cache inlining hits
@@ -547,10 +548,37 @@ namespace Internal.JitInterface
         }
 
         private CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_STRUCT_* method)
-        { throw new NotImplementedException("getUnmanagedCallConv"); }
+        {
+            PInvokeAttributes callingConv =
+                HandleToObject(method).GetPInvokeMethodMetadata().Attributes & PInvokeAttributes.CallingConventionMask;
+
+            if (_compilation.Options.TargetArchitecture == TargetArchitecture.X86)
+            {
+                switch (callingConv)
+                {
+                    case PInvokeAttributes.CallingConventionCDecl:
+                        return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_C;
+
+                    case PInvokeAttributes.CallingConventionStdCall:
+                        return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_STDCALL;
+
+                    case PInvokeAttributes.CallingConventionThisCall:
+                        return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_THISCALL;
+                }
+
+                return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_UNKNOWN;
+            }
+
+            // All other platforms have a single calling convention.
+            return CorInfoUnmanagedCallConv.CORINFO_UNMANAGED_CALLCONV_STDCALL;
+        }
+
         [return: MarshalAs(UnmanagedType.Bool)]
         private bool pInvokeMarshalingRequired(CORINFO_METHOD_STRUCT_* method, CORINFO_SIG_INFO* callSiteSig)
-        { throw new NotImplementedException("pInvokeMarshalingRequired"); }
+        {
+            return Internal.IL.Stubs.PInvokeMarshallingILEmitter.RequiresMarshalling(HandleToObject(method));
+        }
+
         [return: MarshalAs(UnmanagedType.Bool)]
         private bool satisfiesMethodConstraints(CORINFO_CLASS_STRUCT_* parent, CORINFO_METHOD_STRUCT_* method)
         { throw new NotImplementedException("satisfiesMethodConstraints"); }
@@ -1442,18 +1470,20 @@ namespace Internal.JitInterface
         {
             get
             {
-                const uint BaseSize = this.PointerSize * 3 + 4;
-                switch (_compilation.TargetArchitecture)
+                uint baseSize = (uint)(this.PointerSize * 3 + 4);
+                uint addend = 0;
+                switch (_compilation.Options.TargetArchitecture)
                 {
                     case TargetArchitecture.ARM:
-                        return (uint)(this.PointerSize + BaseSize);
+                        addend = (uint)this.PointerSize;
+                        break;
 
                     case TargetArchitecture.X64:
-                        return (uint)(this.BaseSize + 4);
-
-                    default:
-                        return this.BaseSize;
+                        addend = 4;
+                        break;
                 }
+
+                return baseSize + addend;
             }
         }
 

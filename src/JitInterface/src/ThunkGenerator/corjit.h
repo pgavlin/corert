@@ -92,7 +92,7 @@ enum CorJitFlag
 
 #else // FEATURE_LEGACYNETCF
 
-    CORJIT_FLG_UNUSED1             = 0x00000100,
+    CORJIT_FLG_PINVOKE_DIRECT_CALLS= 0x00000100, // Direct calls to native methods do not require indirections
 
 #endif // FEATURE_LEGACYNETCF
 

@@ -1373,6 +1373,9 @@ namespace Internal.JitInterface
         CORJIT_FLG_USE_AVX_512         = 0x00001000,
         CORJIT_FLG_FEATURE_SIMD        = 0x00002000,
 
+        CORJIT_FLG_PINVOKE_USE_HELPERS = 0x00004000, // Use JIT_PINVOKE_{BEGIN,END} helpers instead of generating transitions inline.
+        CORJIT_FLG_PINVOKE_DIRECT_CALLS= 0x00008000, // Direct calls to native methods do not require indirections
+
         CORJIT_FLG_READYTORUN          = 0x00010000, // Use version-resilient code generation
 
         CORJIT_FLG_PROF_ENTERLEAVE     = 0x00020000, // Instrument prologues/epilogues
